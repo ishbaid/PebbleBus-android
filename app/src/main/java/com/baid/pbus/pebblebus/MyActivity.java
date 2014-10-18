@@ -5,24 +5,44 @@ import android.app.AlertDialog;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.os.AsyncTask;
+import android.os.Bundle;
+import android.os.Handler;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
-import android.os.*;
 
 import com.getpebble.android.kit.PebbleKit;
 import com.getpebble.android.kit.util.PebbleDictionary;
 
+import org.apache.http.HttpEntity;
+import org.apache.http.HttpResponse;
+import org.apache.http.NameValuePair;
+import org.apache.http.client.ClientProtocolException;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.entity.UrlEncodedFormEntity;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.impl.client.DefaultHttpClient;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.UnsupportedEncodingException;
+import java.util.ArrayList;
 import java.util.UUID;
 
 
 public class MyActivity extends Activity implements View.OnClickListener{
 
     TextView message;
-    Button launch, hello;
+    Button launch, hello, request;
     boolean connected, messageSupport;
     private final static UUID PEBBLE_APP_UUID = UUID.fromString("0902a0a7-ca40-4299-8fcc-abb641ee0007");
     @Override
@@ -38,6 +58,9 @@ public class MyActivity extends Activity implements View.OnClickListener{
 
         hello = (Button) findViewById(R.id.hello);
         hello.setOnClickListener(this);
+
+        request = (Button) findViewById(R.id.request);
+        request.setOnClickListener(this);
 
         if (PebbleKit.areAppMessagesSupported(getApplicationContext())) {
 
@@ -148,7 +171,92 @@ public class MyActivity extends Activity implements View.OnClickListener{
             data.addString(1, "Hello World!");
             PebbleKit.sendDataToPebble(getApplicationContext(), PEBBLE_APP_UUID, data);
         }
+        else if(id == request.getId()){
+
+            getBusInfo();
+        }
     }
+
+    private void getBusInfo(){
+
+        new parseBusInfo().execute();
+        //alertMessage("Done");
+    }
+
+    class parseBusInfo extends AsyncTask<String, String, Void> {
+
+        InputStream inputStream = null;
+        String result = "";
+
+        @Override
+        protected Void doInBackground(String... params) {
+
+            String url_select = "http://mbus.doublemap.com/map/v2/buses";
+
+            ArrayList<NameValuePair> param = new ArrayList<NameValuePair>();
+
+            try {
+                // Set up HTTP post
+
+                // HttpClient is more then less deprecated. Need to change to URLConnection
+                HttpClient httpClient = new DefaultHttpClient();
+
+                HttpPost httpPost = new HttpPost(url_select);
+                httpPost.setEntity(new UrlEncodedFormEntity(param));
+                HttpResponse httpResponse = httpClient.execute(httpPost);
+                HttpEntity httpEntity = httpResponse.getEntity();
+
+                // Read content & Log
+                inputStream = httpEntity.getContent();
+            } catch (UnsupportedEncodingException e1) {
+                Log.e("UnsupportedEncodingException", e1.toString());
+                e1.printStackTrace();
+            } catch (ClientProtocolException e2) {
+                Log.e("ClientProtocolException", e2.toString());
+                e2.printStackTrace();
+            } catch (IllegalStateException e3) {
+                Log.e("IllegalStateException", e3.toString());
+                e3.printStackTrace();
+            } catch (IOException e4) {
+                Log.e("IOException", e4.toString());
+                e4.printStackTrace();
+            }
+            // Convert response to string using String Builder
+            try {
+                BufferedReader bReader = new BufferedReader(new InputStreamReader(inputStream, "iso-8859-1"), 8);
+                StringBuilder sBuilder = new StringBuilder();
+
+                String line = null;
+                while ((line = bReader.readLine()) != null) {
+                    sBuilder.append(line + "\n");
+                }
+
+                inputStream.close();
+                result = sBuilder.toString();
+
+            } catch (Exception e) {
+                Log.e("StringBuilding & BufferedReader", "Error converting result " + e.toString());
+            }
+           return null;
+        } // protected Void doInBackground(String... params)
+
+        protected void onPostExecute(Void v) {
+            //parse JSON data
+            try {
+                JSONArray jArray = new JSONArray(result);
+                for(int i = 0; i < jArray.length(); i++) {
+
+                    JSONObject jObject = jArray.getJSONObject(i);
+                    Log.d("Baid", jObject.toString());
+
+                } // End Loop
+
+            } catch (JSONException e) {
+                Log.e("JSONException", "Error: " + e.toString());
+            } // catch (JSONException e)
+        } // protected void onPostExecute(Void v)
+
+    }//asynctask
 
     private void alertMessage(String m){
 
