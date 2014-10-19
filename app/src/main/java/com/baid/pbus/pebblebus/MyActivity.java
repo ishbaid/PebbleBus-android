@@ -33,7 +33,7 @@ public class MyActivity extends Activity implements View.OnClickListener, OnTask
 
     boolean connected, messageSupport;
     static boolean locationKnown;
-    private final static UUID PEBBLE_APP_UUID = UUID.fromString("0902a0a7-ca40-4299-8fcc-abb641ee0007");
+    private final static UUID PEBBLE_APP_UUID = UUID.fromString("39402cd8-7f97-4e4b-b673-01b79eca47fc");
 
 
     static RetrieveStops rs;
@@ -112,9 +112,10 @@ public class MyActivity extends Activity implements View.OnClickListener, OnTask
 
                 AlertDialog alertDialog = new AlertDialog.Builder(MyActivity.this).create();
                 alertDialog.setTitle("Alert");
-                alertDialog.setMessage("Location not available");
+                alertDialog.setMessage("Nacked!");
                 alertDialog.setCanceledOnTouchOutside(true);
                 alertDialog.show();
+                sendData();
             }
         });
 
@@ -136,6 +137,11 @@ public class MyActivity extends Activity implements View.OnClickListener, OnTask
         });
 
         initializeRouteMap();
+
+        if(connected)
+            PebbleKit.startAppOnPebble(getApplicationContext(), PEBBLE_APP_UUID);
+
+        getNearestStop();
 
     }
 
@@ -213,13 +219,13 @@ public class MyActivity extends Activity implements View.OnClickListener, OnTask
         int id = v.getId();
         if(id == launch.getId()){
 
-            if(connected)
-                PebbleKit.startAppOnPebble(getApplicationContext(), PEBBLE_APP_UUID);
+            //if(connected)
+              //  PebbleKit.startAppOnPebble(getApplicationContext(), PEBBLE_APP_UUID);
         }
 
         else if(id == request.getId()){
 
-            getNearestStop();
+            //getNearestStop();
 
         }
     }
@@ -319,12 +325,12 @@ public class MyActivity extends Activity implements View.OnClickListener, OnTask
                 results.setText(results.getText() + rName + ": " + avg + " minutes\n");
 
 
-               // schedule.addInt32(i, avg);
+               schedule.addInt32(i, avg);
                 Log.d("Baid", "Avg is " + avg);
 
                 int index = indicies.get(rID);
-                //bus.addInt32(i, index);
-                //Log.d("Baid", "Index is " + index);
+                bus.addInt32(i, index);
+                Log.d("Baid", "Index is " + index);
 
             }
             else{
