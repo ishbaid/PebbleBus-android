@@ -35,7 +35,12 @@ public class MyActivity extends Activity implements View.OnClickListener, OnTask
 
     static RetrieveStops rs;
     HashMap<Integer, String> routeMap;
+    HashMap<Integer, Integer> indicies;
     static ETA eta;
+
+    ArrayList<PebbleDictionary> queue;
+    int curIndex = 0;
+    int QUEUE_SIZE;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -78,7 +83,7 @@ public class MyActivity extends Activity implements View.OnClickListener, OnTask
             public void onReceive(Context context, Intent intent) {
 
                 Log.i(getLocalClassName(), "Pebble connected!");
-                alertMessage("Pebble Connected");
+                //alertMessage("Pebble Connected");
             }
         });
 
@@ -87,7 +92,7 @@ public class MyActivity extends Activity implements View.OnClickListener, OnTask
             public void onReceive(Context context, Intent intent) {
 
                 Log.i(getLocalClassName(), "Pebble disconnected!");
-                alertMessage("Pebble disconnected");
+                //alertMessage("Pebble disconnected");
             }
         });
 
@@ -97,7 +102,8 @@ public class MyActivity extends Activity implements View.OnClickListener, OnTask
             @Override
             public void receiveAck(Context context, int transactionId) {
                 Log.i(getLocalClassName(), "Received ack for transaction " + transactionId);
-                //alertMessage("Ack!");
+
+                sendData();
             }
         });
 
@@ -105,7 +111,12 @@ public class MyActivity extends Activity implements View.OnClickListener, OnTask
             @Override
             public void receiveNack(Context context, int transactionId) {
                 Log.i(getLocalClassName(), "Received nack for transaction " + transactionId);
-                //alertMessage("Nack!");
+
+                AlertDialog alertDialog = new AlertDialog.Builder(MyActivity.this).create();
+                alertDialog.setTitle("Alert");
+                alertDialog.setMessage("Location not available");
+                alertDialog.setCanceledOnTouchOutside(true);
+                alertDialog.show();
             }
         });
 
@@ -134,23 +145,47 @@ public class MyActivity extends Activity implements View.OnClickListener, OnTask
 
         //STORE locally
         routeMap = new HashMap<Integer, String>();
-        routeMap.put(0,  "Commuter Southbound");
-        routeMap.put(1,  "Commuter Northbound");
-        routeMap.put(2,  "Northwood Express");
-        routeMap.put(68, "Bursley-Baits Weekends");
-        routeMap.put(69, "Bursley-Baits (Nights)");
-        routeMap.put(72, "Intercampus to East Campus");
-        routeMap.put(73, "Intercampus to NIB");
-        routeMap.put(75, "Mitchell-Glazier to Glazier and VA");
+        routeMap.put(0,  "Comm.S.");
+        routeMap.put(1,  "Comm.N.");
+        routeMap.put(2,  "Northwood");
+        routeMap.put(68, "Bursley-Baits");//weekend
+        routeMap.put(69, "Bursley-Baits");//night
+        routeMap.put(72, "Int.E.C.");
+        routeMap.put(73, "Int.NIB");
+        routeMap.put(75, "Mitchell-Glazier");
         routeMap.put(78, "KMS Shuttle");
-        routeMap.put(87, "Oxford Shuttle");
-        routeMap.put(92, "Diag to Diag express");
-        routeMap.put(102, "Commuter Northbound (Nights)");
-        routeMap.put(107, "Oxford Loop to Diag to Diag Express");
+        routeMap.put(87, "Oxford");
+        routeMap.put(92, "Diag-Diag");
+        routeMap.put(102, "Com.N.(Ni)");
+        routeMap.put(107, "Oxford");
+        routeMap.put(192, "Northwood");
         routeMap.put(193, "North Campus");
+        routeMap.put(197, "Night Owl");
         routeMap.put(198, "Bursley-Baits");
         routeMap.put(199, "Northwood");
-        routeMap.put(200, "Oxford Shuttle");
+        routeMap.put(200, "Oxford");
+
+        indicies = new HashMap<Integer, Integer>();
+        indicies.put(0, 0);
+        indicies.put(1,  1);
+        indicies.put(2,  2);
+        indicies.put(68, 3);//weekend
+        indicies.put(69, 4);//night
+        indicies.put(72, 5);
+        indicies.put(73, 6);
+        indicies.put(75, 7);
+        indicies.put(78, 8);
+        indicies.put(87, 9);
+        indicies.put(92, 10);
+        indicies.put(102, 11);
+        indicies.put(107, 12);
+        indicies.put(192, 13);
+        indicies.put(193, 14);
+        indicies.put(197, 15);
+        indicies.put(198, 16);
+        indicies.put(199, 17);
+        indicies.put(200, 18);
+
 
     }
 
@@ -185,9 +220,9 @@ public class MyActivity extends Activity implements View.OnClickListener, OnTask
         }
         else if(id == hello.getId() && messageSupport){
 
-            PebbleDictionary data = new PebbleDictionary();
-            data.addString(1, "Hello World!");
-            PebbleKit.sendDataToPebble(getApplicationContext(), PEBBLE_APP_UUID, data);
+          //  PebbleDictionary data = new PebbleDictionary();
+            //data.addString(1, "Hello World!");
+            //PebbleKit.sendDataToPebble(getApplicationContext(), PEBBLE_APP_UUID, data);
         }
         else if(id == request.getId()){
 
@@ -219,8 +254,8 @@ public class MyActivity extends Activity implements View.OnClickListener, OnTask
 
         //Change later
         //CC-LITTLE
-        double longitude = -83.735085;//location.getLongitude();
-        double latitude = 42.278175;//location.getLatitude();
+        double longitude = -83.73494;//location.getLongitude();
+        double latitude = 42.277683;//location.getLatitude();
 
         message.setText("lat, " + latitude + "-- long, " + longitude);
 
@@ -247,7 +282,6 @@ public class MyActivity extends Activity implements View.OnClickListener, OnTask
         if(!locationKnown)
             return;
         int id = rs.getId();
-        String name = rs.getName();
 
         eta = new ETA(id, this);
         eta.execute();
@@ -256,24 +290,77 @@ public class MyActivity extends Activity implements View.OnClickListener, OnTask
         Log.d("Baid", "Done!");
     }
 
+    //sends data to Pebble
     @Override
     public void onTask2Completed() {
 
-        ArrayList<Integer> busIDs = eta.getBusIDs();
+       ArrayList<Integer> busIDs = eta.getBusIDs();
         ArrayList<Integer> expTime = eta.getExpTimes();
 
         assert (busIDs.size() == expTime.size());
 
         Log.d("Baid", "Buses: " + busIDs.size());
 
+        QUEUE_SIZE  = 4;
+
+        //Name
+        PebbleDictionary name = new PebbleDictionary();
+        name.addString(0, rs.getName());
+
+        //Size
+        PebbleDictionary size = new PebbleDictionary();
+        size.addInt32(0, busIDs.size());
+
+        PebbleDictionary schedule = new PebbleDictionary();
+
+        PebbleDictionary bus = new PebbleDictionary();
+
         for(int i = 0; i < busIDs.size(); i ++){
 
             int avg = expTime.get(i);
             int rID = busIDs.get(i);
-            String rName = routeMap.get(rID);
-            if(rName != null)
-                Log.d("Baid", rName + " arrives in " + avg + " minutes-- ID:  " + rID);
+            if(routeMap == null)
+                Log.d("Baid", "rm is null");
+
+            if(routeMap.containsKey(rID)) {
+
+
+                schedule.addInt32(i, avg);
+                Log.d("Baid", "Avg is " + avg);
+
+                int index = indicies.get(rID);
+                bus.addInt32(i, index);
+                Log.d("Baid", "Index is " + index);
+
+            }
 
         }
+
+        //Creates queue
+        queue = new ArrayList<PebbleDictionary>();
+        queue.add(name);
+        queue.add(size);
+        queue.add(schedule);
+        queue.add(bus);
+
+
+
+        sendData();
+
+
+    }
+
+    private void sendData(){
+
+        Log.d("Baid", "Sending data");
+        if(connected && messageSupport && curIndex < QUEUE_SIZE){
+
+            PebbleDictionary toSend = queue.get(curIndex);
+            PebbleKit.sendDataToPebble(getApplicationContext(), PEBBLE_APP_UUID, toSend);
+
+            curIndex ++;
+        }
+
+
     }
 }
