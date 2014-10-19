@@ -33,10 +33,15 @@ public class RetrieveStops extends AsyncTask<String, String, Void> {
     double lat, lon;
     int id;
     String stopName;
-    public RetrieveStops(double lt, double ln){
+    OnTaskCompleted listener;
+
+    public RetrieveStops(double lt, double ln, OnTaskCompleted l){
 
         lat = lt;
         lon = ln;
+
+        listener = l;
+
         id = -1;
         stopName = null;
 
@@ -147,8 +152,8 @@ public class RetrieveStops extends AsyncTask<String, String, Void> {
             Log.e("JSONException", "Error: " + e.toString());
         } // catch (JSONException e)
 
-        //call getETA
-        MyActivity.getETA();
+        //callback
+        listener.onTask1Completed();
 
     } // protected void onPostExecute(Void v)
 

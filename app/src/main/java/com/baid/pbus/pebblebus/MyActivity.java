@@ -19,10 +19,12 @@ import android.widget.TextView;
 import com.getpebble.android.kit.PebbleKit;
 import com.getpebble.android.kit.util.PebbleDictionary;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.UUID;
 
 
-public class MyActivity extends Activity implements View.OnClickListener{
+public class MyActivity extends Activity implements View.OnClickListener, OnTaskCompleted{
 
     TextView message;
     Button launch, hello, request;
@@ -32,6 +34,8 @@ public class MyActivity extends Activity implements View.OnClickListener{
 
 
     static RetrieveStops rs;
+    HashMap<Integer, String> routeMap;
+    static ETA eta;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -110,7 +114,7 @@ public class MyActivity extends Activity implements View.OnClickListener{
         PebbleKit.registerReceivedDataHandler(this, new PebbleKit.PebbleDataReceiver(PEBBLE_APP_UUID) {
             @Override
             public void receiveData(final Context context, final int transactionId, final PebbleDictionary data) {
-                Log.i(getLocalClassName(), "Received value=" + data.getUnsignedInteger(0) + " for key: 0");
+                Log.i(getLocalClassName(), "Received value=" + data.getUnsignedInteger(0) + " for key, 0");
 
                 handler.post(new Runnable() {
                     @Override
@@ -121,6 +125,32 @@ public class MyActivity extends Activity implements View.OnClickListener{
                 PebbleKit.sendAckToPebble(getApplicationContext(), transactionId);
             }
         });
+
+        initializeRouteMap();
+
+    }
+
+    private void initializeRouteMap(){
+
+        //STORE locally
+        routeMap = new HashMap<Integer, String>();
+        routeMap.put(0,  "Commuter Southbound");
+        routeMap.put(1,  "Commuter Northbound");
+        routeMap.put(2,  "Northwood Express");
+        routeMap.put(68, "Bursley-Baits Weekends");
+        routeMap.put(69, "Bursley-Baits (Nights)");
+        routeMap.put(72, "Intercampus to East Campus");
+        routeMap.put(73, "Intercampus to NIB");
+        routeMap.put(75, "Mitchell-Glazier to Glazier and VA");
+        routeMap.put(78, "KMS Shuttle");
+        routeMap.put(87, "Oxford Shuttle");
+        routeMap.put(92, "Diag to Diag express");
+        routeMap.put(102, "Commuter Northbound (Nights)");
+        routeMap.put(107, "Oxford Loop to Diag to Diag Express");
+        routeMap.put(193, "North Campus");
+        routeMap.put(198, "Bursley-Baits");
+        routeMap.put(199, "Northwood");
+        routeMap.put(200, "Oxford Shuttle");
 
     }
 
@@ -187,31 +217,17 @@ public class MyActivity extends Activity implements View.OnClickListener{
             locationKnown = true;
         }
 
-        double longitude = location.getLongitude();
-        double latitude = location.getLatitude();
+        //Change later
+        //CC-LITTLE
+        double longitude = -83.735085;//location.getLongitude();
+        double latitude = 42.278175;//location.getLatitude();
 
-        message.setText("lat: " + latitude + "-- long: " + longitude);
+        message.setText("lat, " + latitude + "-- long, " + longitude);
 
-        rs = new RetrieveStops(latitude, longitude);
+        rs = new RetrieveStops(latitude, longitude, this);
         rs.execute();
 
     }
-
-    public static void getETA(){
-
-        //if we don't know location, we cannot get an ETA
-        if(!locationKnown)
-            return;
-        int id = rs.getId();
-        String name = rs.getName();
-
-        ETA eta = new ETA(id);
-        eta.execute();
-
-
-        Log.d("Baid", "Done!");
-    }
-
 
     private void alertMessage(String m){
 
@@ -224,4 +240,40 @@ public class MyActivity extends Activity implements View.OnClickListener{
     }
 
 
+    @Override
+    public void onTask1Completed() {
+
+        //if we don't know location, we cannot get an ETA
+        if(!locationKnown)
+            return;
+        int id = rs.getId();
+        String name = rs.getName();
+
+        eta = new ETA(id, this);
+        eta.execute();
+
+
+        Log.d("Baid", "Done!");
+    }
+
+    @Override
+    public void onTask2Completed() {
+
+        ArrayList<Integer> busIDs = eta.getBusIDs();
+        ArrayList<Integer> expTime = eta.getExpTimes();
+
+        assert (busIDs.size() == expTime.size());
+
+        Log.d("Baid", "Buses: " + busIDs.size());
+
+        for(int i = 0; i < busIDs.size(); i ++){
+
+            int avg = expTime.get(i);
+            int rID = busIDs.get(i);
+            String rName = routeMap.get(rID);
+            if(rName != null)
+                Log.d("Baid", rName + " arrives in " + avg + " minutes-- ID:  " + rID);
+
+        }
+    }
 }

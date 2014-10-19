@@ -30,10 +30,34 @@ class ETA extends AsyncTask<String, String, Void> {
     InputStream inputStream = null;
     String result = "";
     int routeID;
-    public ETA(int rID){
+    ArrayList<Integer> busIDs;
+    ArrayList<Integer> expTime;
+
+    private OnTaskCompleted listener;
+
+    public ETA(int rID, OnTaskCompleted l){
 
         routeID = rID;
+
+        //keeps track of when asyctask is finished
+        listener = l;
+        //keeps track of near buses and arrival times
+        busIDs = new ArrayList<Integer>();
+        expTime = new ArrayList<Integer>();
+
     }
+
+    public ArrayList<Integer> getBusIDs(){
+
+        return busIDs;
+    }
+
+    public ArrayList<Integer> getExpTimes(){
+
+        return expTime;
+    }
+
+
 
     @Override
     protected Void doInBackground(String... params) {
@@ -121,6 +145,13 @@ class ETA extends AsyncTask<String, String, Void> {
                 JSONObject jObject = jArray.getJSONObject(i);
                 Log.d("Baid", jObject.toString());
 
+                int id = jObject.getInt("route");
+                int time = jObject.getInt("avg");
+                String liveness = jObject.getString("type");
+
+                    busIDs.add(id);
+                    expTime.add(time);
+
 
 
             } // End Loop
@@ -129,7 +160,8 @@ class ETA extends AsyncTask<String, String, Void> {
             Log.e("JSONException", "Error: " + e.toString());
         } // catch (JSONException e)
 
-
+        //callback
+        listener.onTask2Completed();
 
     } // protected void onPostExecute(Void v)
 
