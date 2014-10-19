@@ -14,6 +14,7 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.TextView;
 
 import com.getpebble.android.kit.PebbleKit;
@@ -28,6 +29,8 @@ public class MyActivity extends Activity implements View.OnClickListener, OnTask
 
     TextView message;
     Button launch, hello, request;
+    EditText results;
+
     boolean connected, messageSupport;
     static boolean locationKnown;
     private final static UUID PEBBLE_APP_UUID = UUID.fromString("0902a0a7-ca40-4299-8fcc-abb641ee0007");
@@ -53,11 +56,12 @@ public class MyActivity extends Activity implements View.OnClickListener, OnTask
         launch = (Button) findViewById(R.id.launch);
         launch.setOnClickListener(this);
 
-        hello = (Button) findViewById(R.id.hello);
-        hello.setOnClickListener(this);
 
         request = (Button) findViewById(R.id.request);
         request.setOnClickListener(this);
+
+        results = (EditText) findViewById(R.id.results);
+
 
         if (PebbleKit.areAppMessagesSupported(getApplicationContext())) {
 
@@ -70,12 +74,6 @@ public class MyActivity extends Activity implements View.OnClickListener, OnTask
             messageSupport = false;
         }
 
-
-
-        if(connected)
-            message.setText("Connected!");
-        else
-            message.setText("Not connected");
 
         //notifies us when pebble connects or disconnects
         PebbleKit.registerPebbleConnectedReceiver(getApplicationContext(), new BroadcastReceiver() {
@@ -218,12 +216,7 @@ public class MyActivity extends Activity implements View.OnClickListener, OnTask
             if(connected)
                 PebbleKit.startAppOnPebble(getApplicationContext(), PEBBLE_APP_UUID);
         }
-        else if(id == hello.getId() && messageSupport){
 
-          //  PebbleDictionary data = new PebbleDictionary();
-            //data.addString(1, "Hello World!");
-            //PebbleKit.sendDataToPebble(getApplicationContext(), PEBBLE_APP_UUID, data);
-        }
         else if(id == request.getId()){
 
             getNearestStop();
@@ -257,8 +250,6 @@ public class MyActivity extends Activity implements View.OnClickListener, OnTask
         double longitude = -83.73494;//location.getLongitude();
         double latitude = 42.277683;//location.getLatitude();
 
-        message.setText("lat, " + latitude + "-- long, " + longitude);
-
         rs = new RetrieveStops(latitude, longitude, this);
         rs.execute();
 
@@ -286,7 +277,7 @@ public class MyActivity extends Activity implements View.OnClickListener, OnTask
         eta = new ETA(id, this);
         eta.execute();
 
-
+        message.setText(rs.getName());
         Log.d("Baid", "Done!");
     }
 
@@ -314,27 +305,44 @@ public class MyActivity extends Activity implements View.OnClickListener, OnTask
         PebbleDictionary schedule = new PebbleDictionary();
 
         PebbleDictionary bus = new PebbleDictionary();
-
+//
         for(int i = 0; i < busIDs.size(); i ++){
 
             int avg = expTime.get(i);
-            int rID = busIDs.get(i);
+            Integer rID = busIDs.get(i);
             if(routeMap == null)
                 Log.d("Baid", "rm is null");
 
-            if(routeMap.containsKey(rID)) {
+            if(rID != null && routeMap.containsKey(rID)) {
+
+                String rName = routeMap.get(rID);
+                results.setText(results.getText() + rName + ": " + avg + " minutes\n");
 
 
-                schedule.addInt32(i, avg);
+               // schedule.addInt32(i, avg);
                 Log.d("Baid", "Avg is " + avg);
 
                 int index = indicies.get(rID);
-                bus.addInt32(i, index);
-                Log.d("Baid", "Index is " + index);
+                //bus.addInt32(i, index);
+                //Log.d("Baid", "Index is " + index);
 
+            }
+            else{
+
+                Log.d("Baid", "Not selected: " + avg);
             }
 
         }
+
+        schedule.addInt32(0, 1);
+        schedule.addInt32(1, 2);
+        schedule.addInt32(2, 3);
+
+        bus.addInt32(0, 10);
+        bus.addInt32(1, 15);
+        bus.addInt32(2, 18);
+        bus.addInt32(3, 1);
+        bus.addInt32(4, 4);
 
         //Creates queue
         queue = new ArrayList<PebbleDictionary>();
