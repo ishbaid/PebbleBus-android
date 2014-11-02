@@ -1,6 +1,9 @@
 package com.baid.pbus.pebblebus;
 
-import android.location.Location;
+/**
+ * Created by Ish on 10/23/14.
+ */
+
 import android.os.AsyncTask;
 import android.util.Log;
 
@@ -22,39 +25,40 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
+import java.util.HashMap;
 
 /**
  * Created by Ish on 10/18/14.
+ *
+ * This class retrieves ALL bus stops
  */
-public class RetrieveStops extends AsyncTask<String, String, Void> {
+public class RetrieveBusStops extends AsyncTask<String, String, Void> {
 
     InputStream inputStream = null;
     String result = "";
-    double lat, lon;
-    int id;
-    String stopName;
+
+    ArrayList<String> stopNames;
+    HashMap<String, Integer> stopMap;
+
     OnTaskCompleted listener;
 
-    public RetrieveStops(double lt, double ln, OnTaskCompleted l){
-
-        lat = lt;
-        lon = ln;
+    public RetrieveBusStops(OnTaskCompleted l){
 
         listener = l;
-
-        id = -1;
-        stopName = null;
+        stopNames = new ArrayList<String>();
+        stopMap = new HashMap<String, Integer>();
 
     }
 
-    public int getId(){
+    public ArrayList<String> getStopNames(){
 
-        return id;
+        return stopNames;
     }
 
-    public String getName(){
+    //maps stop Ids to stop names
+    public HashMap <String, Integer> getStopMap(){
 
-        return stopName;
+        return stopMap;
     }
 
     @Override
@@ -117,42 +121,25 @@ public class RetrieveStops extends AsyncTask<String, String, Void> {
 
             JSONArray jArray = new JSONArray(result);
 
-            double min = Double.MAX_VALUE;
             for(int i = 0; i < jArray.length(); i++) {
 
                 JSONObject jObject = jArray.getJSONObject(i);
-                Log.d("Baid", jObject.toString());
-                int tid = jObject.getInt("id");
-                String name = jObject.getString("name");
+                String bName = jObject.getString("name");
+                int id = jObject.getInt("id");
 
-                double jlat = jObject.getDouble("lat");
-                double jlon = jObject.getDouble("lon");
-
-                Location locationA = new Location("point A");
-                locationA.setLatitude(lat);
-                locationA.setLongitude(lon);
-                Location locationB = new Location("point B");
-                locationB.setLatitude(jlat);
-                locationB.setLongitude(jlon);
-                double distance = locationA.distanceTo(locationB) ;
-                if(distance < min){
-
-                    min = distance;
-                    id = tid;
-                    stopName = name;
-                }
-
+                stopNames.add(bName);
+                stopMap.put(bName, id);
 
 
             } // End Loop
 
+            Log.d("Baid", "Number of stops: " + stopNames.size());
 
-
-            Log.d("Baid", "Min: " + min + " ID: " + id + " Name: " + stopName);
 
         } catch (JSONException e) {
             Log.e("JSONException", "Error: " + e.toString());
         } // catch (JSONException e)
+
 
         //callback
         listener.onTask1Completed();
@@ -160,5 +147,6 @@ public class RetrieveStops extends AsyncTask<String, String, Void> {
     } // protected void onPostExecute(Void v)
 
 }//asynctask
+
 
 

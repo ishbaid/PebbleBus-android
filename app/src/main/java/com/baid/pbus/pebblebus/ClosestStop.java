@@ -13,8 +13,10 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
-import android.widget.EditText;
+import android.widget.ListView;
 import android.widget.TextView;
 
 import com.getpebble.android.kit.PebbleKit;
@@ -25,11 +27,11 @@ import java.util.HashMap;
 import java.util.UUID;
 
 
-public class MyActivity extends Activity implements View.OnClickListener, OnTaskCompleted{
+public class ClosestStop extends Activity implements View.OnClickListener, OnTaskCompleted{
 
     TextView message;
     Button launch, hello, request;
-    EditText results;
+    ListView results;
 
     boolean connected, messageSupport;
     static boolean locationKnown;
@@ -60,7 +62,7 @@ public class MyActivity extends Activity implements View.OnClickListener, OnTask
         request = (Button) findViewById(R.id.request);
         request.setOnClickListener(this);
 
-        results = (EditText) findViewById(R.id.results);
+        results = (ListView) findViewById(R.id.results);
 
 
         if (PebbleKit.areAppMessagesSupported(getApplicationContext())) {
@@ -110,7 +112,7 @@ public class MyActivity extends Activity implements View.OnClickListener, OnTask
             public void receiveNack(Context context, int transactionId) {
                 Log.i(getLocalClassName(), "Received nack for transaction " + transactionId);
 
-                AlertDialog alertDialog = new AlertDialog.Builder(MyActivity.this).create();
+                AlertDialog alertDialog = new AlertDialog.Builder(ClosestStop.this).create();
                 alertDialog.setTitle("Alert");
                 alertDialog.setMessage("Nacked!");
                 alertDialog.setCanceledOnTouchOutside(true);
@@ -141,7 +143,7 @@ public class MyActivity extends Activity implements View.OnClickListener, OnTask
         if(connected)
             PebbleKit.startAppOnPebble(getApplicationContext(), PEBBLE_APP_UUID);
 
-        getNearestStop();
+
 
     }
 
@@ -202,6 +204,13 @@ public class MyActivity extends Activity implements View.OnClickListener, OnTask
     }
 
     @Override
+    protected void onResume() {
+        super.onResume();
+        getNearestStop();
+
+    }
+
+    @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         // Handle action bar item clicks here. The action bar will
         // automatically handle clicks on the Home/Up button, so long
@@ -237,7 +246,7 @@ public class MyActivity extends Activity implements View.OnClickListener, OnTask
 
         if(location == null){
 
-            AlertDialog alertDialog = new AlertDialog.Builder(MyActivity.this).create();
+            AlertDialog alertDialog = new AlertDialog.Builder(ClosestStop.this).create();
             alertDialog.setTitle("Alert");
             alertDialog.setMessage("Location not available");
             alertDialog.setCanceledOnTouchOutside(true);
@@ -251,10 +260,11 @@ public class MyActivity extends Activity implements View.OnClickListener, OnTask
             locationKnown = true;
         }
 
-        //Change later
-        //CC-LITTLE
-        double longitude = -83.73494;//location.getLongitude();
-        double latitude = 42.277683;//location.getLatitude();
+        //gets current location
+        double longitude = location.getLongitude();
+        double latitude = location.getLatitude();
+
+        message.setText("Lat: " + latitude + " Long: " + longitude);
 
         rs = new RetrieveStops(latitude, longitude, this);
         rs.execute();
@@ -280,10 +290,17 @@ public class MyActivity extends Activity implements View.OnClickListener, OnTask
             return;
         int id = rs.getId();
 
-        eta = new ETA(id, this);
-        eta.execute();
+        if(id != -1){
 
-        message.setText(rs.getName());
+            eta = new ETA(id, this);
+            eta.execute();
+
+            String rName = rs.getName();
+            //if(rName != null) {
+              //  message.setText(rs.getName());
+           // }
+        }
+
         Log.d("Baid", "Done!");
     }
 
@@ -292,7 +309,8 @@ public class MyActivity extends Activity implements View.OnClickListener, OnTask
     public void onTask2Completed() {
 
        ArrayList<Integer> busIDs = eta.getBusIDs();
-        ArrayList<Integer> expTime = eta.getExpTimes();
+       ArrayList<Integer> expTime = eta.getExpTimes();
+       ArrayList<String> busNames = new ArrayList<String>();
 
         assert (busIDs.size() == expTime.size());
 
@@ -322,7 +340,7 @@ public class MyActivity extends Activity implements View.OnClickListener, OnTask
             if(rID != null && routeMap.containsKey(rID)) {
 
                 String rName = routeMap.get(rID);
-                results.setText(results.getText() + rName + ": " + avg + " minutes\n");
+                busNames.add(rName);
 
 
                schedule.addInt32(i, avg);
@@ -339,6 +357,18 @@ public class MyActivity extends Activity implements View.OnClickListener, OnTask
             }
 
         }
+
+        //set list of arrival times
+        ArrayAdapter<String> adapter = new ArrayAdapter<String>(this,
+                android.R.layout.simple_list_item_1, android.R.id.text1, busNames);
+        results.setAdapter(adapter);
+        results.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+
+            }
+        });
+
 
         schedule.addInt32(0, 1);
         schedule.addInt32(1, 2);

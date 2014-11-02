@@ -131,6 +131,7 @@ class ETA extends AsyncTask<String, String, Void> {
             else{
 
                 Log.d("Baid", routeID + " is route");
+                Log.d("Baid", "JSON result: " + result);
                 return;
             }
 
